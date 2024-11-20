@@ -12,11 +12,11 @@ use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 
 /**
  * Index information.
- *
- * @DatabaseTable
  */
 class Index extends AbstractModel
 {
+    protected \DateTime $tstamp;
+
     /**
      * The unique register key of the used table/model configuration.
      */
@@ -76,13 +76,7 @@ class Index extends AbstractModel
      */
     public function getConfiguration(): array
     {
-        foreach (Register::getRegister() as $key => $configuration) {
-            if ($this->getUniqueRegisterKey() === $key) {
-                return $configuration;
-            }
-        }
-
-        return [];
+        return Register::getRegister()[$this->getUniqueRegisterKey()] ?? [];
     }
 
     /**
@@ -112,6 +106,11 @@ class Index extends AbstractModel
         }
 
         return $date;
+    }
+
+    public function getTstamp(): \DateTime
+    {
+        return $this->tstamp;
     }
 
     /**

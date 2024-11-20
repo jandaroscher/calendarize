@@ -47,11 +47,31 @@ plugin.tx_calendarize {
   }
 }
 
+# Changes the namespace of the plugins so that the controller accept tx_calendarize_calendar query parameters.
+# This way we can use e.g. tx_calendarize_calendar[index] for all plugins (except booking).
+# Otherwise, the ViewHelper links to the wrong plugin or, with a undefined plugin, the detail action is ambiguous (detail, listdetail)
+# This is also consistent to previous versions of calendarize.
+plugin {
+  tx_calendarize_listdetail.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_list.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_detail.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_search.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_result.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_latest.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_single.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_year.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_quarter.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_month.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_week.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_day.view.pluginNamespace = tx_calendarize_calendar
+  tx_calendarize_past.view.pluginNamespace = tx_calendarize_calendar
+}
+
 ["{$plugin.tx_calendarize.settings.useMomentJsDateAndTimeOutput}" == "1"]
-  page.includeJSFooterlibs.moment = https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.27.0/moment-with-locales.min.js
+  page.includeJSFooterlibs.moment = https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment-with-locales.min.js
   page.includeJSFooterlibs.moment.external = 1
   page.includeJSFooterlibs.moment.disableCompression = 1
-  page.includeJSFooterlibs.momentTimezone = https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.31/moment-timezone.min.js
+  page.includeJSFooterlibs.momentTimezone = https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.45/moment-timezone.min.js
   page.includeJSFooterlibs.momentTimezone.external = 1
   page.includeJSFooterlibs.momentTimezone.disableCompression = 1
   page.includeJSFooterlibs.momentReplacement = EXT:calendarize/Resources/Public/JavaScript/MomentReplacement.js
@@ -60,30 +80,22 @@ plugin.tx_calendarize {
 ["{$plugin.tx_calendarize.settings.useMomentFullCalendarIo}" == "1"]
   page {
     includeCSS {
-      fullCalendar = https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.css
+      fullCalendar = https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/5.11.5/main.min.css
       fullCalendar {
         external = 1
-        disableCompression = 1
-        forceOnTop = 1
-      }
-
-      fullCalendarPrint = https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.print.min.css
-      fullCalendarPrint {
-        external = 1
-        media = print
         disableCompression = 1
         forceOnTop = 1
       }
     }
 
     includeJSFooter {
-      fullCalendar = https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js
+      fullCalendar = https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/5.11.5/main.min.js
       fullCalendar {
         external = 1
         disableCompression = 1
         excludeFromConcatenation = 1
       }
-      fullCalendarLanguage = https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/locale-all.js
+      fullCalendarLanguage = https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/5.11.5/locales-all.min.js
       fullCalendarLanguage {
         external = 1
         disableCompression = 1
@@ -99,21 +111,13 @@ plugin.tx_calendarize {
 
 # Rendering of calendarize, displayed by "Insert Record" content element
 tt_content.shortcut.20.tables := addToList(tx_calendarize_domain_model_event)
-tt_content.shortcut.20.conf.tx_calendarize_domain_model_event = USER
+tt_content.shortcut.20.conf.tx_calendarize_domain_model_event = EXTBASEPLUGIN
 tt_content.shortcut.20.conf.tx_calendarize_domain_model_event {
-  userFunc = TYPO3\CMS\Extbase\Core\Bootstrap->run
   extensionName = Calendarize
-  pluginName = Calendar
-  vendorName = HDNET
-  switchableControllerActions {
-    Calendar {
-      1 = shortcut
-    }
-  }
+  pluginName = Shortcut
 
   settings =< plugin.tx_calendarize.settings
   settings {
-    insertRecord = 1
     hidePagination = 1
     detailPid = {$plugin.tx_calendarize.settings.defaultDetailPid}
   }
@@ -122,7 +126,7 @@ tt_content.shortcut.20.conf.tx_calendarize_domain_model_event {
 tt_content.shortcut.variables.shortcuts.tables := addToList(tx_calendarize_domain_model_event)
 tt_content.shortcut.variables.shortcuts.conf.tx_calendarize_domain_model_event =< tt_content.shortcut.20.conf.tx_calendarize_domain_model_event
 
-# Add you own tables with (See: EXT:calendarize/Configuration/TCA/Overrides/tt_content.php)
+# Add you own tables
 # tt_content.shortcut.20.tables := addToList(tx_XXXXXX_domain_model_event)
 # tt_content.shortcut.20.conf.tx_XXXXX_domain_model_event =< tt_content.shortcut.20.conf.tx_calendarize_domain_model_event
 # tt_content.shortcut.variables.shortcuts.tables := addToList(tx_XXXXX_domain_model_event)

@@ -9,7 +9,7 @@ namespace HDNET\Calendarize\ViewHelpers\Link;
  */
 class ListViewHelper extends AbstractActionViewHelper
 {
-    protected string $actionName = 'list';
+    protected ?string $actionName = 'list';
 
     /**
      * Init arguments.
@@ -26,6 +26,6 @@ class ListViewHelper extends AbstractActionViewHelper
      */
     public function render()
     {
-        return $this->renderExtbaseLink([], $this->getPageUid($this->arguments['pageUid'], 'listPid'));
+        return $this->renderExtbaseLink([], $this->getPageUid('listPid'));
     }
 }

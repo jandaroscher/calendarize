@@ -89,7 +89,7 @@ class SlugService extends AbstractService
                 ?? "$uniqueRegisterKey-{$record['uid']}";
         }
 
-        $baseSlug = $this->getSlugHelper($recordData['t3ver_wsid'] ?? 0)->sanitize($baseSlug);
+        $baseSlug = $this->getSlugHelper($record['t3ver_wsid'] ?? 0)->sanitize($baseSlug);
 
         return $this->eventDispatcher->dispatch(new BaseSlugGenerationEvent(
             $uniqueRegisterKey,
@@ -119,10 +119,11 @@ class SlugService extends AbstractService
                 $indexSlug .= '-' . str_replace('-', '', $item['start_date']);
             }
 
-            $indexSlug = $this->getSlugHelper($recordData['t3ver_wsid'] ?? 0)->sanitize($indexSlug);
+            $indexSlug = $this->getSlugHelper($record['t3ver_wsid'] ?? 0)->sanitize($indexSlug);
             $addFields[$key]['slug'] = $this->eventDispatcher->dispatch(new SlugSuffixGenerationEvent(
                 $uniqueRegisterKey,
                 $item,
+                $base,
                 $indexSlug
             ))->getSlug();
         }
@@ -134,10 +135,10 @@ class SlugService extends AbstractService
      * Process the record and make the slug unique in the table, e.g. adds a suffix on duplicate.
      *
      * @param array $recordData
-     *
+     * @param int|null $counter
      * @return string
      */
-    public function makeSlugUnique(array $recordData): string
+    public function makeSlugUnique(array $recordData, ?int $counter = null): string
     {
         // Create RecordState and generate slug
         $state = $this->stateFactory->fromArray(
@@ -148,7 +149,7 @@ class SlugService extends AbstractService
 
         /* @noinspection PhpUnhandledExceptionInspection */
         return $this->getSlugHelper($recordData['t3ver_wsid'] ?? 0)
-            ->buildSlugForUniqueInTable($recordData['slug'], $state);
+            ->buildSlugForUniqueInTable($recordData['slug'] . ($counter ? '-' . $counter : ''), $state);
     }
 
     protected function getSlugHelper(int $workspaceId = 0): SlugHelper

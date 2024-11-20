@@ -38,13 +38,13 @@ services:
         identifier: 'categoryFilter'
         event: HDNET\Calendarize\Event\GenericActionAssignmentEvent
 
-  HDNET\Calendarize\EventListener\DefaultEventSearchListener:
+  HDNET\Calendarize\EventListener\SearchConstraintEventListener:
     tags:
       - name: event.listener
         identifier: 'defaultEventSearch'
         event: HDNET\Calendarize\Event\IndexRepositoryFindBySearchEvent
 
-  HDNET\Calendarize\EventListener\DefaultEventConstraintsListener:
+  HDNET\Calendarize\EventListener\CategoryConstraintEventListener:
     tags:
       - name: event.listener
         identifier: 'defaultEventConstraints'
@@ -86,3 +86,24 @@ services:
 
   HDNET\Calendarize\Service\PluginConfigurationService:
     public: true
+
+  QueryBuilder.tt_content:
+    class: 'TYPO3\CMS\Core\Database\Query\QueryBuilder'
+    factory:
+      - '@TYPO3\CMS\Core\Database\ConnectionPool'
+      - 'getQueryBuilderForTable'
+    arguments:
+      - 'tt_content'
+
+  QueryBuilder.be_groups:
+    class: 'TYPO3\CMS\Core\Database\Query\QueryBuilder'
+    factory:
+      - '@TYPO3\CMS\Core\Database\ConnectionPool'
+      - 'getQueryBuilderForTable'
+    arguments:
+      - 'be_groups'
+
+  HDNET\Calendarize\Updates\PluginUpdater:
+    arguments:
+      $contentElementsQueryBuilder: '@QueryBuilder.tt_content'
+      $backendGroupsQueryBuilder: '@QueryBuilder.be_groups'

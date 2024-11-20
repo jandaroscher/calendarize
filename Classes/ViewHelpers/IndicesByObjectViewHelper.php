@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace HDNET\Calendarize\ViewHelpers;
 
-use HDNET\Calendarize\Domain\Model\Index;
 use HDNET\Calendarize\Domain\Repository\IndexRepository;
-use HDNET\Calendarize\Register;
 use TYPO3\CMS\Extbase\DomainObject\AbstractEntity;
 use TYPO3\CMS\Extbase\Persistence\QueryInterface;
+use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
 
 /**
  * Indices by object.
@@ -51,34 +50,17 @@ class IndicesByObjectViewHelper extends AbstractViewHelper
     /**
      * Render method.
      */
-    public function render(): array
+    public function render(): array|QueryResultInterface
     {
         /** @var AbstractEntity $object */
         $object = $this->arguments['object'];
 
-        $config = null;
-        foreach (Register::getRegister() as $item) {
-            if ($object instanceof $item['modelName']) {
-                $config = $item;
-                break;
-            }
-        }
-
-        if (null === $config) {
-            return [];
-        }
-
-        $fakeIndex = new Index();
-        $fakeIndex->setForeignTable($config['tableName']);
-        $fakeIndex->setForeignUid($object->_getProperty('_localizedUid') ?: $object->getUid());
-
-        return $this->indexRepository->findByTraversing(
-            $fakeIndex,
+        return $this->indexRepository->findByEventTraversing(
+            $object,
             $this->arguments['future'],
             $this->arguments['past'],
             (int)$this->arguments['limit'],
             $this->arguments['sort'],
-            false
         );
     }
 }
