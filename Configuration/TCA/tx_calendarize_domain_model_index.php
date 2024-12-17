@@ -6,35 +6,39 @@ $ll = 'LLL:EXT:calendarize/Resources/Private/Language/locallang.xlf:';
 
 return [
     'ctrl' => [
+        'title' => $ll . 'tx_calendarize_domain_model_index',
+        'label' => 'unique_register_key',
+        'label_alt' => 'start_date',
+        'label_alt_force' => true,
+        'hideTable' => true,
+        'rootLevel' => -1,
+        'languageField' => 'sys_language_uid',
+        'transOrigPointerField' => 'l10n_parent',
+        'versioningWS' => true,
+        'origUid' => 't3_origuid',
+        'tstamp' => 'tstamp',
+        'crdate' => 'crdate',
+        'sortby' => 'sorting',
+        'delete' => 'deleted',
         'enablecolumns' => [
             'disabled' => 'hidden',
             'starttime' => 'starttime',
             'endtime' => 'endtime',
             'fe_group' => 'fe_group',
         ],
-        'languageField' => 'sys_language_uid',
-        'transOrigPointerField' => 'l10n_parent',
-        'versioningWS' => true,
-        'origUid' => 't3_origuid',
-        'title' => $ll . 'tx_calendarize_domain_model_index',
-        'label' => 'unique_register_key',
-        'tstamp' => 'tstamp',
-        'crdate' => 'crdate',
-        'dividers2tabs' => true,
-        'sortby' => 'sorting',
-        'delete' => 'deleted',
+        'iconfile' => 'EXT:calendarize/Resources/Public/Icons/Index.png',
         'searchFields' => 'unique_register_key,foreign_table,foreign_uid,start_date,end_date,start_time,end_time,
             all_day,open_end_time,state,slug',
-        'iconfile' => 'EXT:calendarize/Resources/Public/Icons/Index.png',
-        'hideTable' => true,
-        'rootLevel' => -1,
-        'label_alt' => 'start_date',
-        'label_alt_force' => true,
         'security' => [
             'ignorePageTypeRestriction' => true,
         ],
     ],
     'columns' => [
+        'tstamp' => [
+            'config' => [
+                'type' => 'passthrough',
+            ],
+        ],
         'fe_group' => [
             'exclude' => true,
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.fe_group',
@@ -45,16 +49,16 @@ return [
                 'maxitems' => 20,
                 'items' => [
                     0 => [
-                        0 => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.hide_at_login',
-                        1 => -1,
+                        'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.hide_at_login',
+                        'value' => -1,
                     ],
                     1 => [
-                        0 => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.any_login',
-                        1 => -2,
+                        'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.any_login',
+                        'value' => -2,
                     ],
                     2 => [
-                        0 => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.usergroups',
-                        1 => '--div--',
+                        'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.usergroups',
+                        'value' => '--div--',
                     ],
                 ],
                 'exclusiveKeys' => '-1,-2',
@@ -62,7 +66,7 @@ return [
             ],
         ],
         'hidden' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.hidden',
             'config' => [
                 'type' => 'check',
@@ -85,14 +89,14 @@ return [
                 'type' => 'datetime',
                 'default' => 0,
                 'range' => [
-                    'upper' => 2145913200,
+                    'upper' => mktime(0, 0, 0, 1, 1, 2038),
                 ],
             ],
             'l10n_mode' => 'exclude',
             'l10n_display' => 'defaultAsReadonly',
         ],
         'sys_language_uid' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => 'LLL:EXT:core/Resources/Private/Language/locallang_general.xlf:LGL.language',
             'config' => [
                 'type' => 'language',
@@ -107,8 +111,8 @@ return [
                 'default' => 0,
                 'items' => [
                     0 => [
-                        0 => '',
-                        1 => 0,
+                        'label' => '',
+                        'value' => 0,
                     ],
                 ],
                 'foreign_table' => 'tx_calendarize_domain_model_index',
@@ -116,7 +120,7 @@ return [
             ],
         ],
         'unique_register_key' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.unique_register_key',
             'config' => [
                 'type' => 'input',
@@ -124,7 +128,7 @@ return [
             ],
         ],
         'foreign_table' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.foreign_table',
             'config' => [
                 'type' => 'input',
@@ -132,7 +136,7 @@ return [
             ],
         ],
         'foreign_uid' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.foreign_uid',
             'config' => [
                 'type' => 'number',
@@ -141,7 +145,7 @@ return [
             ],
         ],
         'start_date' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.start_date',
             'config' => [
                 'type' => 'datetime',
@@ -151,7 +155,7 @@ return [
             ],
         ],
         'end_date' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.end_date',
             'config' => [
                 'type' => 'datetime',
@@ -161,7 +165,7 @@ return [
             ],
         ],
         'start_time' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.start_time',
             'config' => [
                 'type' => 'datetime',
@@ -171,7 +175,7 @@ return [
             ],
         ],
         'end_time' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.end_time',
             'config' => [
                 'type' => 'datetime',
@@ -181,7 +185,7 @@ return [
             ],
         ],
         'all_day' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.all_day',
             'config' => [
                 'type' => 'check',
@@ -189,14 +193,14 @@ return [
             ],
         ],
         'open_end_time' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.open_end_time',
             'config' => [
                 'type' => 'check',
             ],
         ],
         'state' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.state',
             'config' => [
                 'type' => 'input',
@@ -204,7 +208,7 @@ return [
             ],
         ],
         'slug' => [
-            'exclude' => 1,
+            'exclude' => true,
             'label' => $ll . 'tx_calendarize_domain_model_index.slug',
             'config' => [
                 'type' => 'slug',
@@ -227,9 +231,11 @@ return [
     ],
     'palettes' => [
         'language' => [
+            'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.palettes.language',
             'showitem' => 'sys_language_uid, l10n_parent, l10n_diffsource',
         ],
         'access' => [
+            'label' => 'LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.palettes.access',
             'showitem' => 'starttime, endtime, --linebreak--, hidden, editlock, --linebreak--, fe_group',
         ],
     ],
@@ -238,9 +244,10 @@ return [
             'showitem' => '
                 unique_register_key,foreign_table,foreign_uid,start_date,end_date,start_time,end_time,
                 all_day,open_end_time,state,slug,
-                --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:language,--palette--;;language,
+                --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:language,
+                --palette--;;language,
                 --div--;LLL:EXT:core/Resources/Private/Language/Form/locallang_tabs.xlf:access,
-                --palette--;LLL:EXT:frontend/Resources/Private/Language/locallang_tca.xlf:pages.palettes.access;access,
+                --palette--;;access,
                 --div--;LLL:EXT:frontend/Resources/Private/Language/locallang_ttc.xlf:tabs.extended
             ',
         ],

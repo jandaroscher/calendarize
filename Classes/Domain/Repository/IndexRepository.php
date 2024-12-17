@@ -20,6 +20,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\DomainObject\DomainObjectInterface;
+use TYPO3\CMS\Extbase\Persistence\Generic\Qom\ConstraintInterface;
 use TYPO3\CMS\Extbase\Persistence\QueryInterface;
 use TYPO3\CMS\Extbase\Persistence\QueryResultInterface;
 
@@ -36,6 +37,7 @@ class IndexRepository extends AbstractRepository
     protected $defaultOrderings = [
         'start_date' => QueryInterface::ORDER_ASCENDING,
         'start_time' => QueryInterface::ORDER_ASCENDING,
+        'uid' => QueryInterface::ORDER_ASCENDING,
     ];
 
     /**
@@ -46,7 +48,7 @@ class IndexRepository extends AbstractRepository
     /**
      * Override page ids.
      */
-    protected ?array $overridePageIds = [];
+    protected ?array $overridePageIds = null;
 
     protected EventDispatcherInterface $eventDispatcher;
 
@@ -66,7 +68,7 @@ class IndexRepository extends AbstractRepository
     /**
      * Override page IDs.
      */
-    public function setOverridePageIds(array $overridePageIds): void
+    public function setOverridePageIds(?array $overridePageIds): void
     {
         $this->overridePageIds = $overridePageIds;
     }
@@ -99,11 +101,13 @@ class IndexRepository extends AbstractRepository
             $query->setOrderings([
                 'start_date' => QueryInterface::ORDER_ASCENDING,
                 'start_time' => QueryInterface::ORDER_ASCENDING,
+                'uid' => QueryInterface::ORDER_ASCENDING,
             ]);
         } else {
             $query->setOrderings([
                 'start_date' => QueryInterface::ORDER_DESCENDING,
                 'start_time' => QueryInterface::ORDER_DESCENDING,
+                'uid' => QueryInterface::ORDER_DESCENDING,
             ]);
         }
 
@@ -180,13 +184,18 @@ class IndexRepository extends AbstractRepository
      * Find by custom search.
      */
     public function findBySearch(
-        \DateTimeInterface $startDate = null,
-        \DateTimeInterface $endDate = null,
+        ?\DateTimeInterface $startDate = null,
+        ?\DateTimeInterface $endDate = null,
         array $customSearch = [],
         int $limit = 0
     ): array|QueryResultInterface {
-        $event = new IndexRepositoryFindBySearchEvent($startDate, $endDate, $customSearch, $this->indexTypes, false);
-        $this->eventDispatcher->dispatch($event);
+        $event = $this->eventDispatcher->dispatch(new IndexRepositoryFindBySearchEvent(
+            $startDate,
+            $endDate,
+            $customSearch,
+            $this->indexTypes,
+            false
+        ));
 
         $query = $this->createQuery();
         $constraints = $this->getDefaultConstraints($query);
@@ -202,62 +211,8 @@ class IndexRepository extends AbstractRepository
             $event->getEndDate()
         );
 
-        if ($event->getIndexIds()) {
-            $indexIds = [];
-            $tabledIndexIds = [];
-            foreach ($event->getIndexIds() as $key => $indexId) {
-                if (\is_int($key)) {
-                    // Plain integers (= deprecated old way, stays in for compatibility)
-                    $indexIds[] = $indexId;
-                } elseif (\is_string($key) && \is_array($indexId)) {
-                    // Table based values with array of foreign uids
-                    $tabledIndexIds[] = [
-                        'table' => $key,
-                        'indexIds' => $indexId,
-                    ];
-                } elseif (\is_string($key) && \is_int($indexId)) {
-                    // Table based single return value
-                    $tabledIndexIds[] = [
-                         'table' => $key,
-                         'indexIds' => [$indexId],
-                    ];
-                }
-            }
-            $foreignIdConstraints = [];
-            // Old way, just accept foreignUids as provided, not checking the table.
-            // This has a caveat solved with the $tabledIndexIds
-            if ($indexIds) {
-                $foreignIdConstraints[] = $query->in('foreignUid', $indexIds);
-            }
-            if ($tabledIndexIds) {
-                // Handle each table individually on the filters
-                // allowing for uids to be table specific.
-                // If 1,3,5 on table_a are ok and 4,5,7 on table_b are ok,
-                // don't show uid 1 from table_b
-                foreach ($tabledIndexIds as $tabledIndexId) {
-                    if ($tabledIndexId['indexIds']) {
-                        // This table has used filters and returned some allowed uids.
-                        // Providing non-existing values e.g.: -1 will remove everything
-                        // unless other elements have found elements with the filters
-                        $foreignIdConstraints[] = $query->logicalAnd(
-                            $query->equals('foreignTable', $tabledIndexId['table']),
-                            $query->in('foreignUid', $tabledIndexId['indexIds']),
-                        );
-                    }
-                }
-            }
-            if (\count($foreignIdConstraints) > 1) {
-                // Multiple valid tables should be grouped by "OR"
-                // so it's either table_a with uids 1,3,4 OR table_b with uids 1,5,7
-                $foreignIdConstraint = $query->logicalOr(...$foreignIdConstraints);
-            } else {
-                // Single constraint or no constraint should just be simply added
-                $foreignIdConstraint = array_shift($foreignIdConstraints);
-            }
-            // If any foreignUid constraint survived, use it on the query
-            if ($foreignIdConstraint) {
-                $constraints[] = $foreignIdConstraint;
-            }
+        if ($event->getForeignIds()) {
+            $constraints[] = $this->addForeignIdConstraints($query, $event->getForeignIds());
         }
         if ($event->isEmptyPreResult()) {
             $constraints[] = $query->equals('uid', '-1');
@@ -347,6 +302,44 @@ class IndexRepository extends AbstractRepository
         return $this->matchAndExecute($query, $constraints);
     }
 
+    public function findByTableAndUid(
+        string $table,
+        int $uid,
+        bool $future = true,
+        bool $past = false,
+        int $limit = 100,
+        string $sort = QueryInterface::ORDER_ASCENDING,
+        ?\DateTimeImmutable $referenceDate = null
+    ): array|QueryResultInterface {
+        if (!$future && !$past) {
+            return [];
+        }
+        $query = $this->createQuery();
+        $query->getQuerySettings()->setRespectStoragePage(false);
+        $query->getQuerySettings()->setRespectSysLanguage(false);
+
+        $constraints[] = $query->equals('foreignUid', $uid);
+        $constraints[] = $query->equals('foreignTable', $table);
+
+        $now = ($referenceDate ?? DateTimeUtility::getNow())->format('Y-m-d');
+        if (!$future) {
+            $constraints[] = $query->lessThanOrEqual('startDate', $now);
+        }
+        if (!$past) {
+            $constraints[] = $query->greaterThanOrEqual('startDate', $now);
+        }
+
+        if ($limit > 0) {
+            $query->setLimit($limit);
+        }
+        $sort = QueryInterface::ORDER_ASCENDING === $sort ?
+            QueryInterface::ORDER_ASCENDING :
+            QueryInterface::ORDER_DESCENDING;
+        $query->setOrderings($this->getSorting($sort));
+
+        return $this->matchAndExecute($query, $constraints);
+    }
+
     /**
      * Find by traversing information.
      */
@@ -360,35 +353,19 @@ class IndexRepository extends AbstractRepository
         if (!$future && !$past) {
             return [];
         }
-        $query = $this->createQuery();
-
-        $uniqueRegisterKey = ExtensionConfigurationUtility::getUniqueRegisterKeyForModel($event);
-
-        $this->setIndexTypes([$uniqueRegisterKey]);
-
-        $now = DateTimeUtility::getNow()->format('Y-m-d');
-
-        $constraints = [];
+        $tableName = ExtensionConfigurationUtility::getConfigurationForModel($event)['tableName'];
 
         $localizedUid = $event->_getProperty('_localizedUid');
         $selectUid = $localizedUid ?: $event->getUid();
 
-        $constraints[] = $query->equals('foreignUid', $selectUid);
-        $constraints[] = $query->in('uniqueRegisterKey', $this->indexTypes);
-        if (!$future) {
-            $constraints[] = $query->lessThanOrEqual('startDate', $now);
-        }
-        if (!$past) {
-            $constraints[] = $query->greaterThanOrEqual('startDate', $now);
-        }
-
-        $query->setLimit($limit);
-        $sort = QueryInterface::ORDER_ASCENDING === $sort ?
-            QueryInterface::ORDER_ASCENDING :
-            QueryInterface::ORDER_DESCENDING;
-        $query->setOrderings($this->getSorting($sort));
-
-        return $this->matchAndExecute($query, $constraints);
+        return $this->findByTableAndUid(
+            $tableName,
+            $selectUid,
+            $future,
+            $past,
+            $limit,
+            $sort
+        );
     }
 
     /**
@@ -478,14 +455,15 @@ class IndexRepository extends AbstractRepository
      */
     public function findByTimeSlot(
         ?\DateTimeInterface $startTime,
-        \DateTimeInterface $endTime = null
+        ?\DateTimeInterface $endTime = null
     ): array|QueryResultInterface {
         $query = $this->createQuery();
         $constraints = $this->getDefaultConstraints($query);
         $this->addTimeFrameConstraints($constraints, $query, $startTime, $endTime);
 
-        $event = new IndexRepositoryTimeSlotEvent($constraints, $query);
-        $this->eventDispatcher->dispatch($event);
+        $event = $this->eventDispatcher->dispatch(
+            new IndexRepositoryTimeSlotEvent($constraints, $query)
+        );
 
         return $this->matchAndExecute($query, $event->getConstraints());
     }
@@ -495,16 +473,12 @@ class IndexRepository extends AbstractRepository
      */
     public function findByEvent(DomainObjectInterface $event): array|QueryResultInterface
     {
-        $query = $this->createQuery();
-
-        $uniqueRegisterKey = ExtensionConfigurationUtility::getUniqueRegisterKeyForModel($event);
-
-        $this->setIndexTypes([$uniqueRegisterKey]);
-        $constraints = $this->getDefaultConstraints($query);
-        $constraints[] = $query->equals('foreignUid', $event->getUid());
-        $query->matching($query->logicalAnd(...$constraints));
-
-        return $query->execute();
+        return $this->findByEventTraversing(
+            $event,
+            true,
+            true,
+            0
+        );
     }
 
     /**
@@ -521,9 +495,7 @@ class IndexRepository extends AbstractRepository
         $frameworkConfig = $configurationManager
             ->getConfiguration(ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK);
 
-        return isset($frameworkConfig['persistence']['storagePid']) ?
-            GeneralUtility::intExplode(',', $frameworkConfig['persistence']['storagePid']) :
-            [];
+        return GeneralUtility::intExplode(',', (string)($frameworkConfig['persistence']['storagePid'] ?? ''));
     }
 
     /**
@@ -542,11 +514,12 @@ class IndexRepository extends AbstractRepository
             $constraints[] = $query->in('pid', $storagePages);
         }
 
-        $event = new IndexRepositoryDefaultConstraintEvent([], $this->indexTypes, $this->additionalSlotArguments);
-        $this->eventDispatcher->dispatch($event);
+        $event = $this->eventDispatcher->dispatch(
+            new IndexRepositoryDefaultConstraintEvent([], $this->indexTypes, $this->additionalSlotArguments)
+        );
 
-        if ($event->getIndexIds()) {
-            $constraints[] = $query->in('foreignUid', $event->getIndexIds());
+        if ($event->getForeignIds()) {
+            $constraints[] = $this->addForeignIdConstraints($query, $event->getForeignIds());
         }
 
         return $constraints;
@@ -565,8 +538,8 @@ class IndexRepository extends AbstractRepository
     protected function addTimeFrameConstraints(
         array &$constraints,
         QueryInterface $query,
-        \DateTimeInterface $startTime = null,
-        \DateTimeInterface $endTime = null
+        ?\DateTimeInterface $startTime = null,
+        ?\DateTimeInterface $endTime = null
     ): void {
         /** @var AddTimeFrameConstraintsEvent $event */
         $event = $this->eventDispatcher->dispatch(new AddTimeFrameConstraintsEvent(
@@ -674,6 +647,7 @@ class IndexRepository extends AbstractRepository
                 'endDate' => $direction,
                 'startDate' => $direction,
                 'startTime' => $direction,
+                'uid' => $direction,
             ];
         }
         if ('end' !== $field) {
@@ -683,6 +657,46 @@ class IndexRepository extends AbstractRepository
         return [
             $field . 'Date' => $direction,
             $field . 'Time' => $direction,
+            'uid' => $direction,
         ];
+    }
+
+    protected function addForeignIdConstraints(QueryInterface $query, array $foreignIds): ConstraintInterface
+    {
+        $foreignIdConstraints = [];
+        foreach ($foreignIds as $table => $ids) {
+            if (\is_int($table)) {
+                // Plain integers (= deprecated old way, stays in for compatibility)
+                // Old way, just accept foreignUids as provided, not checking the table.
+                $foreignIdConstraints[] = $query->equals('foreignUid', $ids);
+                @trigger_error(
+                    'Using only foreign ID constraint without a table is deprecated and will be removed in a later version.',
+                    \E_USER_DEPRECATED
+                );
+            } elseif (\is_string($table) && \is_array($ids)) {
+                // Table based values with array of foreign uids
+                // Handle each table individually on the filters allowing for uids to be table specific.
+                $foreignIdConstraints[] = $query->logicalAnd(
+                    $query->equals('foreignTable', $table),
+                    $query->in('foreignUid', $ids),
+                );
+            } elseif (\is_string($table) && \is_int($ids)) {
+                // Table based single return value
+                $foreignIdConstraints[] = $query->logicalAnd(
+                    $query->equals('foreignTable', $table),
+                    $query->in('foreignUid', [$ids]),
+                );
+            }
+        }
+        if (\count($foreignIdConstraints) > 1) {
+            // Multiple valid tables should be grouped by "OR"
+            // so it's either table_a with uids 1,3,4 OR table_b with uids 1,5,7
+            $foreignIdConstraint = $query->logicalOr(...$foreignIdConstraints);
+        } else {
+            // Single constraint or no constraint should just be simply added
+            $foreignIdConstraint = array_shift($foreignIdConstraints);
+        }
+
+        return $foreignIdConstraint;
     }
 }

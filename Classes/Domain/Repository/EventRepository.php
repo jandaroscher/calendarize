@@ -27,6 +27,8 @@ class EventRepository extends AbstractRepository
     public function findBySearch(Search $search): array
     {
         $query = $this->createQuery();
+        $query->getQuerySettings()->setRespectStoragePage(false);
+
         $constraints = [];
         if ($search->getFullText()) {
             $constraints['fullText'] = $query->logicalOr(
@@ -44,15 +46,10 @@ class EventRepository extends AbstractRepository
         $query->matching($query->logicalAnd(...$constraints));
         $rows = $query->execute(true);
 
-        $ids = [];
-        foreach ($rows as $row) {
-            $ids[] = (int)$row['uid'];
-        }
-
-        return $ids;
+        return array_map(static fn ($row) => (int)($row['_LOCALIZED_UID'] ?? $row['uid']), $rows);
     }
 
-    public function findOneByImportId(string $importId): ?object
+    public function findOneByImportId(string $importId, ?int $pid = null): ?object
     {
         $query = $this->createQuery();
 
@@ -60,7 +57,12 @@ class EventRepository extends AbstractRepository
         $querySettings->setRespectStoragePage(false);
         $querySettings->setIgnoreEnableFields(true);
 
-        $query->matching($query->equals('importId', $importId));
+        $constraints = [$query->equals('importId', $importId)];
+        if (null !== $pid) {
+            $constraints[] = $query->equals('pid', $pid);
+        }
+
+        $query->matching($query->logicalAnd(...$constraints));
 
         return $query->execute()->getFirst();
     }
@@ -78,25 +80,20 @@ class EventRepository extends AbstractRepository
         }
 
         try {
-            $result = $this->indexRepository->findByEventTraversing($event, true, false, 1);
-            if (empty($result)) {
+            $result = $this->indexRepository->findByEventTraversing($event, true, false, 1)->getFirst();
+            if (null === $result) {
                 $result = $this->indexRepository->findByEventTraversing(
                     $event,
                     false,
                     true,
                     1,
                     QueryInterface::ORDER_DESCENDING
-                );
+                )->getFirst();
             }
         } catch (\Exception $exception) {
             return null;
         }
 
-        if (empty($result)) {
-            return null;
-        }
-
-        /* @var Index $index */
-        return $result->getFirst();
+        return $result;
     }
 }

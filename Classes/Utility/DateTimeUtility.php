@@ -118,20 +118,20 @@ class DateTimeUtility
      * Get a normalize date time object.
      */
     public static function normalizeDateTime(
-        int $day = null,
-        int $month = null,
-        int $year = null
+        ?int $day = null,
+        ?int $month = null,
+        ?int $year = null
     ): \DateTime {
         $date = self::getNow();
         // Check if this date should handle always in UTC
         // $date->setTimezone(self::getUtcTimeZone());
-        if (!MathUtility::canBeInterpretedAsInteger($year)) {
+        if (!MathUtility::canBeInterpretedAsInteger($year) || 0 === $year) {
             $year = $date->format('Y');
         }
-        if (!MathUtility::canBeInterpretedAsInteger($month)) {
+        if (!MathUtility::canBeInterpretedAsInteger($month) || 0 === $month) {
             $month = $date->format('m');
         }
-        if (!MathUtility::canBeInterpretedAsInteger($day)) {
+        if (!MathUtility::canBeInterpretedAsInteger($day) || 0 === $day) {
             $day = $date->format('d');
         }
         $date->setDate((int)$year, (int)$month, (int)$day);
@@ -148,7 +148,7 @@ class DateTimeUtility
     /**
      * Normalize quarter.
      */
-    public static function normalizeQuarter(int $quarter = null): int
+    public static function normalizeQuarter(?int $quarter = null): int
     {
         if (null === $quarter) {
             $quarter = self::getQuarter(self::getNow());
@@ -170,7 +170,7 @@ class DateTimeUtility
     /**
      * Reset the DateTime.
      */
-    public static function resetTime(string|\DateTimeInterface $dateTime = null): \DateTime
+    public static function resetTime(string|\DateTimeInterface|null $dateTime = null): \DateTime
     {
         $dateTime = self::normalizeDateTimeSingle($dateTime);
         $dateTime->setTime(0, 0);
@@ -184,8 +184,8 @@ class DateTimeUtility
      * @throws \Exception
      */
     public static function normalizeDateTimeSingle(
-        int|string|\DateTimeInterface $dateInformation = null,
-        \DateTimeZone $timezone = null
+        int|string|\DateTimeInterface|null $dateInformation = null,
+        ?\DateTimeZone $timezone = null
     ): \DateTime {
         $timezone = $timezone ?? self::getTimeZone();
         $date = self::getNow();
@@ -247,27 +247,5 @@ class DateTimeUtility
         $dateTime->setTime(23, 59, 59);
 
         return $dateTime;
-    }
-
-    /**
-     * Converts DateTime objects for native dates, so that they are stored "as is".
-     * This is required for Typo3 versions before 11, since they are formatted in UTC, but shouldn't.
-     *
-     * @deprecated wax used for fixing TYPO3 11 UTC error
-     */
-    public static function fixDateTimeForDb(?\DateTime $date): ?\DateTime
-    {
-        return $date;
-    }
-
-    /**
-     * Converts the native date object from UTC to the local timezone.
-     * This is required for Typo3 versions before 11, since the dates in the db are assumed as UTC, but aren't.
-     *
-     * @deprecated wax used for fixing TYPO3 11 UTC error
-     */
-    public static function fixDateTimeForExtbase(?\DateTime $date): ?\DateTime
-    {
-        return $date;
     }
 }

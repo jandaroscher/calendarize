@@ -59,8 +59,9 @@ class PluginConfigurationService
     {
         foreach (Register::getRegister() as $key => $configuration) {
             $config['items'][] = [
-                $configuration['title'],
-                $key,
+                'label' => $configuration['title'],
+                'value' => $key,
+                'icon' => $GLOBALS['TCA'][$configuration['tableName']]['ctrl']['typeicon_classes']['default'] ?? 'tcarecords-' . $configuration['tableName'] . '-default',
             ];
         }
 
@@ -86,6 +87,7 @@ class PluginConfigurationService
         $query = HelperUtility::getQuery($row['model_name']);
         $query
             ->getQuerySettings()
+            ->setRespectSysLanguage(false)
             ->setRespectStoragePage(false);
 
         return $query

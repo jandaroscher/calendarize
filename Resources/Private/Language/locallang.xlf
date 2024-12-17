@@ -36,6 +36,9 @@
 			<trans-unit id="tx_calendarize_domain_model_configuration.end_date_dynamic">
 				<source>End date (dynamic)</source>
 			</trans-unit>
+			<trans-unit id="tx_calendarize_domain_model_configuration.flex_form">
+				<source>Configuration</source>
+			</trans-unit>
 			<trans-unit id="configuration.end_date_dynamic.1day">
 				<source>1 day</source>
 			</trans-unit>
@@ -78,14 +81,6 @@
 			<trans-unit id="tx_calendarize_domain_model_configuration.import_id">
 				<source>import_id</source>
 			</trans-unit>
-			<trans-unit id="sys_file_reference.import_id">
-				<source>import_id</source>
-			</trans-unit>
-			<trans-unit id="sys_category.import_id">
-				<source>import_id</source>
-			</trans-unit>
-
-
 			<trans-unit id="inherit">
 				<source>Inherit</source>
 			</trans-unit>
@@ -186,18 +181,13 @@
 				<source>Wrong date</source>
 			</trans-unit>
 			<trans-unit id="wrong.date.message">
-				<source>The date of one of the date configurations is wrong. The end date cannot be earlier than the
-					start date.
-				</source>
+				<source>The date of one of the date configurations is wrong. The end date cannot be earlier than the start date.</source>
 			</trans-unit>
 			<trans-unit id="wrong.time">
 				<source>Wrong time</source>
 			</trans-unit>
 			<trans-unit id="wrong.time.message">
-				<source>The time of one of the date configurations is wrong. The end time cannot be earlier than the
-					start time! If the end time is 00:00, then the end date must be at least one day later than the
-					start date.
-				</source>
+				<source>The time of one of the date configurations is wrong. The end time cannot be earlier than the start time! If the end time is 00:00, then the end date must be at least one day later than the start date.</source>
 			</trans-unit>
 			<trans-unit id="flashMessage.missingStartDate.title" resname="flashMessage.missingStartDate.title">
 				<source>Missing start date</source>
@@ -375,6 +365,9 @@
 			<trans-unit id="configuration.type.timeExclude">
 				<source>Time (exclude)</source>
 			</trans-unit>
+			<trans-unit id="configuration.type.calendarize_manipulation">
+				<source>Time Manipulation</source>
+			</trans-unit>
 			<trans-unit id="configuration.state.canceled">
 				<source>Canceled</source>
 			</trans-unit>
@@ -465,7 +458,7 @@
 			<trans-unit id="mode.booking">
 				<source>Calendarize - Booking</source>
 			</trans-unit>
-			<trans-unit id="mode.bookingSend">
+			<trans-unit id="mode.bookingsend">
 				<source>Booking</source>
 			</trans-unit>
 			<trans-unit id="mode.day">
@@ -480,7 +473,7 @@
 			<trans-unit id="mode.list">
 				<source>List only</source>
 			</trans-unit>
-			<trans-unit id="mode.listDetail">
+			<trans-unit id="mode.listdetail">
 				<source>List + Detail</source>
 			</trans-unit>
 			<trans-unit id="mode.month">
@@ -545,15 +538,53 @@
 			<trans-unit id="pluginName">
 				<source>Calendar</source>
 			</trans-unit>
-			<trans-unit id="pluginName.description">
-				<source>Add a flexible calendar plugin to the current page (incl. different views)</source>
+			<trans-unit id="pluginName.description.listdetail">
+				<source>List and detail view in a single plugin for small calendar instances.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.list">
+				<source>List view for listing future events. Have to link with the detail view.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.detail">
+				<source>Detail view of a event.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.latest">
+				<source>A "Latest" view for events, that list the next few events.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.search">
+				<source>A search form for the events with a few default fields. Extendable via events.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.result">
+				<source>The search result plugin that output the results of the user search.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.single">
+				<source>Render a single event on a separated page - static.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.past">
+				<source>Display events from the past.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.booking">
+				<source>Render a booking form to book a event.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.day">
+				<source>Chronological view for days.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.week">
+				<source>Chronological view for weeks.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.month">
+				<source>Chronological view for months.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.quarter">
+				<source>Chronological view for quarters.</source>
+			</trans-unit>
+			<trans-unit id="pluginName.description.year">
+				<source>Chronological view for years.</source>
 			</trans-unit>
 			<trans-unit id="pluginNameBooking">
 				<source>Calendar Booking</source>
 			</trans-unit>
 			<trans-unit id="previewLabel">
-				<source>There is/are %d item/items in the index of the current record. The next %d events (incl. today)
-					are
+				<source>There is/are %d item/items in the index of the current record. The next %d events (incl. today) are
 					(ignore enable columns)...
 				</source>
 			</trans-unit>
@@ -568,6 +599,21 @@
 			</trans-unit>
 			<trans-unit id="sortBy">
 				<source>Sort by</source>
+			</trans-unit>
+			<trans-unit id="categoryConjunction">
+				<source>Category mode</source>
+			</trans-unit>
+			<trans-unit id="categoryConjunction.description">
+				<source>Limit the results to the specified categories. The categories are defined in the Categories tab of this content element and/or in the Plugin Configuration.</source>
+			</trans-unit>
+			<trans-unit id="categoryConjunction.all">
+				<source>Don't care, show all</source>
+			</trans-unit>
+			<trans-unit id="categoryConjunction.or">
+				<source>Show items with selected categories (OR)</source>
+			</trans-unit>
+			<trans-unit id="categoryConjunction.and">
+				<source>Show items with selected categories (AND)</source>
 			</trans-unit>
 			<trans-unit id="startingpoint">
 				<source>Startingpoint</source>
@@ -732,8 +778,7 @@
 				<source>Open End</source>
 			</trans-unit>
 			<trans-unit id="your_search">
-				<source>
-					<![CDATA[Your search in the time from <span class="date-start">%1$s</span> to <span class="date-end">%2$s</span> found these results]]></source>
+				<source><![CDATA[Your search in the time from <span class="date-start">%1$s</span> to <span class="date-end">%2$s</span> found these results]]></source>
 			</trans-unit>
 			<trans-unit id="search.button_label">
 				<source>Search</source>

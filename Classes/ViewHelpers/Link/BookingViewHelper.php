@@ -11,9 +11,10 @@ use HDNET\Calendarize\Domain\Model\Index;
  */
 class BookingViewHelper extends AbstractActionViewHelper
 {
-    protected string $controllerName = 'Booking';
+    protected ?string $pluginName = 'Booking';
+    protected ?string $controllerName = 'Booking';
 
-    protected string $actionName = 'booking';
+    protected ?string $actionName = 'booking';
 
     /**
      * Init arguments.
@@ -37,7 +38,7 @@ class BookingViewHelper extends AbstractActionViewHelper
 
         return $this->renderExtbaseLink(
             $pluginArgs,
-            $this->getPageUid((int)$this->arguments['pageUid'], 'bookingPid')
+            $this->getPageUid('bookingPid')
         );
     }
 }

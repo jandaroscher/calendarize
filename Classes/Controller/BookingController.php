@@ -13,12 +13,12 @@ use TYPO3\CMS\Extbase\Annotation as Extbase;
 /**
  * BookingController.
  */
-class BookingController extends AbstractCompatibilityController
+class BookingController extends AbstractController
 {
     /**
      * Form action.
      */
-    public function bookingAction(Index $index = null): ResponseInterface
+    public function bookingAction(?Index $index = null): ResponseInterface
     {
         $this->view->assign('index', $index);
 

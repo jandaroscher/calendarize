@@ -6,24 +6,20 @@ namespace HDNET\Calendarize\Controller;
 
 use HDNET\Calendarize\Domain\Model\Event;
 use HDNET\Calendarize\Domain\Model\Index;
-use HDNET\Calendarize\Domain\Repository\AbstractRepository;
 use HDNET\Calendarize\Event\DetermineSearchEvent;
 use HDNET\Calendarize\Event\PaginationEvent;
 use HDNET\Calendarize\Register;
 use HDNET\Calendarize\Utility\DateTimeUtility;
-use HDNET\Calendarize\Utility\EventUtility;
 use HDNET\Calendarize\Utility\ExtensionConfigurationUtility;
 use HDNET\Calendarize\Utility\TranslateUtility;
 use Psr\Http\Message\ResponseInterface;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\MetaTag\MetaTagManagerRegistry;
-use TYPO3\CMS\Core\Pagination\SimplePagination;
-use TYPO3\CMS\Core\Utility\ClassNamingUtility;
+use TYPO3\CMS\Core\Pagination\SlidingWindowPagination;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
 use TYPO3\CMS\Extbase\Annotation as Extbase;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
-use TYPO3\CMS\Extbase\DomainObject\DomainObjectInterface;
 use TYPO3\CMS\Extbase\Http\ForwardResponse;
 use TYPO3\CMS\Extbase\Pagination\QueryResultPaginator;
 use TYPO3\CMS\Extbase\Persistence\QueryInterface;
@@ -35,7 +31,7 @@ use TYPO3\CMS\Frontend\Controller\TypoScriptFrontendController;
 /**
  * Calendar.
  */
-class CalendarController extends AbstractCompatibilityController
+class CalendarController extends AbstractController
 {
     /**
      * Init all actions.
@@ -67,7 +63,6 @@ class CalendarController extends AbstractCompatibilityController
         }
 
         $this->modifyIndexRepository();
-        $this->redirectDetailWithEvent();
     }
 
     protected function modifyIndexRepository(): void
@@ -93,30 +88,28 @@ class CalendarController extends AbstractCompatibilityController
         }
     }
 
-    protected function redirectDetailWithEvent(): void
+    protected function redirectDetailWithEvent(): ?ResponseInterface
     {
-        if ($this->request->hasArgument('event') && 'detailAction' === $this->actionMethodName) {
-            // default configuration
-            $configurationName = $this->settings['configuration'] ?? '';
-            // configuration overwritten by argument?
-            if ($this->request->hasArgument('extensionConfiguration')) {
-                $configurationName = $this->request->getArgument('extensionConfiguration');
-            }
-            // get the configuration
-            $configuration = ExtensionConfigurationUtility::get($configurationName);
-
-            // get Event by Configuration and Uid
-            $event = EventUtility::getOriginalRecordByConfiguration(
-                $configuration,
-                (int)$this->request->getArgument('event')
-            );
-            $index = $this->indexRepository->findByEventTraversing($event, true, false, 1)->getFirst();
-
-            // if there is a valid index in the event
-            if ($index) {
-                $this->redirect('detail', null, null, ['index' => $index]);
-            }
+        if (!$this->request->hasArgument('extensionConfiguration') || !$this->request->hasArgument('event')) {
+            return null;
         }
+        $configuration = ExtensionConfigurationUtility::get($this->request->getArgument('extensionConfiguration'));
+        if (null === $configuration) {
+            return null;
+        }
+
+        $table = $configuration['tableName'];
+        $uid = (int)$this->request->getArgument('event');
+
+        $index = $this->indexRepository->findByTableAndUid($table, $uid, true, false, 1)->getFirst();
+        if (null === $index) {
+            $index = $this->indexRepository->findByTableAndUid($table, $uid, false, true, 1)->getFirst();
+        }
+        if ($index) {
+            return $this->redirect('detail', null, null, ['index' => $index]);
+        }
+
+        return null;
     }
 
     /**
@@ -126,9 +119,9 @@ class CalendarController extends AbstractCompatibilityController
     #[Extbase\IgnoreValidation(['argumentName' => 'endDate'])]
     #[Extbase\IgnoreValidation(['argumentName' => 'customSearch'])]
     public function latestAction(
-        Index $index = null,
-        \DateTime $startDate = null,
-        \DateTime $endDate = null,
+        ?Index $index = null,
+        ?\DateTime $startDate = null,
+        ?\DateTime $endDate = null,
         array $customSearch = [],
         int $year = 0,
         int $month = 0,
@@ -167,9 +160,9 @@ class CalendarController extends AbstractCompatibilityController
     #[Extbase\IgnoreValidation(['argumentName' => 'endDate'])]
     #[Extbase\IgnoreValidation(['argumentName' => 'customSearch'])]
     public function resultAction(
-        Index $index = null,
-        \DateTime $startDate = null,
-        \DateTime $endDate = null,
+        ?Index $index = null,
+        ?\DateTime $startDate = null,
+        ?\DateTime $endDate = null,
         array $customSearch = [],
         int $year = 0,
         int $month = 0,
@@ -208,9 +201,9 @@ class CalendarController extends AbstractCompatibilityController
     #[Extbase\IgnoreValidation(['argumentName' => 'endDate'])]
     #[Extbase\IgnoreValidation(['argumentName' => 'customSearch'])]
     public function listAction(
-        Index $index = null,
-        \DateTime $startDate = null,
-        \DateTime $endDate = null,
+        ?Index $index = null,
+        ?\DateTime $startDate = null,
+        ?\DateTime $endDate = null,
         array $customSearch = [],
         int $year = 0,
         int $month = 0,
@@ -249,42 +242,23 @@ class CalendarController extends AbstractCompatibilityController
      */
     public function shortcutAction(): ResponseInterface
     {
-        $this->addCacheTags(['calendarize_shortcut']);
+        [$table, $uid] = explode(':', $this->getTypoScriptFrontendController()->currentRecord);
+        $uid = (int)$uid;
 
-        list($table, $uid) = explode(':', $this->getTypoScriptFrontendController()->currentRecord);
-        $register = Register::getRegister();
-
-        $event = null;
-        foreach ($register as $value) {
-            if ($value['tableName'] === $table) {
-                $repositoryName = ClassNamingUtility::translateModelNameToRepositoryName($value['modelName']);
-                if (class_exists($repositoryName)) {
-                    /** @var AbstractRepository $repository */
-                    $repository = GeneralUtility::makeInstance($repositoryName);
-                    $event = $repository->findByUid($uid);
-
-                    $this->addCacheTags(
-                        ['calendarize_' . lcfirst($value['uniqueRegisterKey']) . '_' . $event->getUid()]
-                    );
-                    break;
-                }
-            }
-        }
-
-        if (!($event instanceof DomainObjectInterface)) {
-            return $this->htmlResponse('Invalid object');
-        }
+        $configurationByTable = array_column(Register::getRegister(), null, 'tableName');
+        $this->addCacheTags([
+            'calendarize_shortcut',
+            'calendarize_' . lcfirst($configurationByTable[$table]['uniqueRegisterKey'] ?? 'unknown') . '_' . $uid,
+        ]);
 
         $limitEvents = (int)($this->settings['shortcutLimitEvents'] ?? 1);
 
-        $fetchEvent = $this->indexRepository->findByEventTraversing($event, true, false, $limitEvents);
+        $fetchEvent = $this->indexRepository->findByTableAndUid($table, $uid, true, false, $limitEvents)->toArray();
         if (\count($fetchEvent) <= 0) {
-            $fetchEvent = $this->indexRepository
-                ->findByEventTraversing($event, false, true, $limitEvents, QueryInterface::ORDER_DESCENDING);
+            $fetchEvent = $this->indexRepository->findByTableAndUid($table, $uid, false, true, $limitEvents, QueryInterface::ORDER_DESCENDING)->toArray();
         }
 
         $this->view->assignMultiple([
-            'pagination' => $this->getPagination($fetchEvent),
             'indices' => $fetchEvent,
         ]);
 
@@ -305,8 +279,8 @@ class CalendarController extends AbstractCompatibilityController
         }
         $this->addCacheTags(['calendarize_past']);
 
-        $limit = $limit ?: (int)($this->settings['limit']);
-        $sort = $sort ?: $this->settings['sorting'];
+        $limit = (int)$this->settings['limit'] ?: $limit;
+        $sort = $this->settings['sorting'] ?: $sort;
         $this->checkStaticTemplateIsIncluded();
         $listStartTime = (string)$this->settings['listStartTime'];
         $indices = $this->indexRepository->findByPast($limit, $sort, $listStartTime);
@@ -357,12 +331,12 @@ class CalendarController extends AbstractCompatibilityController
     /**
      * Quarter action.
      *
-     * @param int $year
-     * @param int $quarter 1-4
+     * @param int      $year
+     * @param int|null $quarter 1-4
      *
      * @return ResponseInterface
      */
-    public function quarterAction(int $year = 0, int $quarter = 1): ResponseInterface
+    public function quarterAction(int $year = 0, ?int $quarter = null): ResponseInterface
     {
         if ($this->request->hasArgument('format')) {
             if ('html' != $this->request->getArgument('format')) {
@@ -396,6 +370,7 @@ class CalendarController extends AbstractCompatibilityController
      */
     public function monthAction(int $year = 0, int $month = 0, int $day = 0): ResponseInterface
     {
+        $this->checkStaticTemplateIsIncluded();
         if ($this->request->hasArgument('format')) {
             if ('html' != $this->request->getArgument('format')) {
                 return $this->return404Page();
@@ -406,6 +381,7 @@ class CalendarController extends AbstractCompatibilityController
         $arguments = $this->request->getArguments();
 
         $date = DateTimeUtility::normalizeDateTime($day, $month, $year);
+
         $now = DateTimeUtility::getNow();
         $useCurrentDate = $now->format('Y-m') === $date->format('Y-m');
 
@@ -439,7 +415,7 @@ class CalendarController extends AbstractCompatibilityController
     /**
      * Week action.
      */
-    public function weekAction(int $year = null, int $week = null): ResponseInterface
+    public function weekAction(?int $year = null, ?int $week = null): ResponseInterface
     {
         if ($this->request->hasArgument('format')) {
             if ('html' != $this->request->getArgument('format')) {
@@ -538,8 +514,12 @@ class CalendarController extends AbstractCompatibilityController
     /**
      * Detail action.
      */
-    public function detailAction(Index $index = null): ResponseInterface
+    public function detailAction(?Index $index = null): ResponseInterface
     {
+        $redirectResponse = $this->redirectDetailWithEvent();
+        if ($redirectResponse) {
+            return $redirectResponse;
+        }
         if (null === $index) {
             // handle fallback for "strange language settings"
             if ($this->request->hasArgument('index')) {
@@ -553,13 +533,14 @@ class CalendarController extends AbstractCompatibilityController
                 if (!MathUtility::canBeInterpretedAsInteger($this->settings['listPid'])) {
                     return $this->htmlResponse(TranslateUtility::get('noEventDetailView'));
                 }
-                $this->eventExtendedRedirect(__CLASS__, __FUNCTION__ . 'noEvent');
+
+                return $this->eventExtendedRedirect(__CLASS__, __FUNCTION__ . 'noEvent');
             }
         }
         $uniqueRegisterKey = $index->getConfiguration()['uniqueRegisterKey'];
         $originalObject = $index->getOriginalObject();
         if (!$originalObject) {
-            $this->eventExtendedRedirect(__CLASS__, __FUNCTION__ . 'noEvent');
+            return $this->eventExtendedRedirect(__CLASS__, __FUNCTION__ . 'noEvent');
         }
 
         $this->addCacheTags(
@@ -597,9 +578,12 @@ class CalendarController extends AbstractCompatibilityController
             }
         }
 
+        /** @var \TYPO3\CMS\Core\Http\NormalizedParams $normalizedParams */
+        $normalizedParams = $this->request->getAttribute('normalizedParams');
+
         $this->eventExtendedAssignMultiple([
             'index' => $index,
-            'domain' => GeneralUtility::getIndpEnv('TYPO3_HOST_ONLY'),
+            'domain' => $normalizedParams->getRequestHostOnly(),
         ], __CLASS__, __FUNCTION__);
 
         return $this->htmlResponse($this->view->render());
@@ -618,8 +602,8 @@ class CalendarController extends AbstractCompatibilityController
     #[Extbase\IgnoreValidation(['argumentName' => 'endDate'])]
     #[Extbase\IgnoreValidation(['argumentName' => 'customSearch'])]
     public function searchAction(
-        \DateTime $startDate = null,
-        \DateTime $endDate = null,
+        ?\DateTime $startDate = null,
+        ?\DateTime $endDate = null,
         array $customSearch = []
     ): ResponseInterface {
         $this->addCacheTags(['calendarize_search']);
@@ -630,7 +614,7 @@ class CalendarController extends AbstractCompatibilityController
         }
         if (!($endDate instanceof \DateTimeInterface)) {
             $endDate = clone $startDate;
-            $modify = \is_string($this->settings['searchEndModifier'])
+            $modify = isset($this->settings['searchEndModifier']) && \is_string($this->settings['searchEndModifier'])
                 ? $this->settings['searchEndModifier']
                 : '+30 days';
             $endDate->modify($modify);
@@ -656,40 +640,21 @@ class CalendarController extends AbstractCompatibilityController
 
         $indicies = [];
 
-        // prepare selection
-        $selections = [];
         $configurations = $this->getCurrentConfigurations();
-        foreach (GeneralUtility::trimExplode(',', $this->settings['singleItems']) as $item) {
-            list($table, $uid) = BackendUtility::splitTable_Uid($item);
-            foreach ($configurations as $configuration) {
-                if ($configuration['tableName'] === $table) {
-                    $selections[] = [
-                        'configuration' => $configuration,
-                        'uid' => $uid,
-                    ];
-                    break;
-                }
+        $configurationByTable = array_column($configurations, null, 'tableName');
+
+        foreach (GeneralUtility::trimExplode(',', $this->settings['singleItems'] ?? '') as $item) {
+            [$table, $uid] = BackendUtility::splitTable_Uid($item);
+            $uid = (int)$uid;
+            if (!isset($configurationByTable[$table])) {
+                continue;
             }
-        }
-
-        // fetch index
-        foreach ($selections as $selection) {
-            $this->indexRepository->setIndexTypes([$selection['configuration']['uniqueRegisterKey']]);
-
-            $dummyIndex = new Index();
-            $dummyIndex->setForeignTable($selection['configuration']['tableName']);
-            $dummyIndex->setForeignUid((int)$selection['uid']);
-
-            $result = $this->indexRepository->findByTraversing($dummyIndex);
-            $index = $result->getQuery()->setLimit(1)->execute()->getFirst();
-            if (\is_object($index)) {
+            $index = $this->indexRepository->findByTableAndUid($table, $uid, true, false, 1)->getFirst();
+            if (null === $index) {
+                $index = $this->indexRepository->findByTableAndUid($table, $uid, false, true, 1)->getFirst();
+            }
+            if ($index) {
                 $indicies[] = $index;
-            } else {
-                $result = $this->indexRepository->findByTraversing($dummyIndex, false, true);
-                $index = $result->getQuery()->setLimit(1)->execute()->getFirst();
-                if (\is_object($index)) {
-                    $indicies[] = $index;
-                }
             }
         }
 
@@ -705,8 +670,8 @@ class CalendarController extends AbstractCompatibilityController
      * Build the search structure.
      */
     protected function determineSearch(
-        \DateTime $startDate = null,
-        \DateTime $endDate = null,
+        ?\DateTime $startDate = null,
+        ?\DateTime $endDate = null,
         array $customSearch = [],
         int $year = 0,
         int $month = 0,
@@ -783,7 +748,7 @@ class CalendarController extends AbstractCompatibilityController
         return $event->getVariables();
     }
 
-    protected function checkWrongDateOrder(\DateTime $startDate = null, \DateTime &$endDate = null): array
+    protected function checkWrongDateOrder(?\DateTime $startDate = null, ?\DateTime &$endDate = null): array
     {
         if ($startDate && $endDate && $endDate < $startDate) {
             // End date is before start date. So use start and end equals!
@@ -802,14 +767,14 @@ class CalendarController extends AbstractCompatibilityController
     protected function getPagination(QueryResultInterface $queryResult): array
     {
         $paginateConfiguration = $this->settings['paginateConfiguration'] ?? [];
-        $itemsPerPage = (int)($paginateConfiguration['itemsPerPage'] ?: 10);
+        $itemsPerPage = (int)($paginateConfiguration['itemsPerPage'] ?? 10);
         $maximumNumberOfLinks = (int)($paginateConfiguration['maximumNumberOfLinks'] ?? 10);
         $currentPage = $this->request->hasArgument('currentPage') ?
             (int)$this->request->getArgument('currentPage')
             : 1;
 
         $paginator = new QueryResultPaginator($queryResult, $currentPage, $itemsPerPage);
-        $pagination = new SimplePagination($paginator);
+        $pagination = new SlidingWindowPagination($paginator, $maximumNumberOfLinks);
 
         $event = new PaginationEvent(
             $paginator,
@@ -865,13 +830,11 @@ class CalendarController extends AbstractCompatibilityController
 
     protected function getBaseUri(): string
     {
-        $request = $GLOBALS['TYPO3_REQUEST'];
-
-        return $request->getAttribute('normalizedParams')->getSiteUrl();
+        return $this->request->getAttribute('normalizedParams')->getSiteUrl();
     }
 
     protected function getTypoScriptFrontendController(): TypoScriptFrontendController
     {
-        return $GLOBALS['TSFE'];
+        return $this->request->getAttribute('frontend.controller');
     }
 }

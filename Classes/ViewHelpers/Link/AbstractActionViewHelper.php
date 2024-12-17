@@ -9,11 +9,11 @@ use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
 
 class AbstractActionViewHelper extends AbstractLinkViewHelper
 {
-    protected string $extensionName = 'Calendarize';
+    protected ?string $extensionName = 'Calendarize';
 
-    protected string $pluginName = 'Calendar';
-    protected string $controllerName = 'Calendar';
-    protected string $actionName;
+    protected ?string $pluginName = 'Calendar';
+    protected ?string $controllerName = 'Calendar';
+    protected ?string $actionName;
 
     public function initializeArguments(): void
     {
@@ -27,17 +27,17 @@ class AbstractActionViewHelper extends AbstractLinkViewHelper
     /**
      * Render a link with action and controller.
      */
-    public function renderExtbaseLink(array $controllerArguments = [], int $pageUid = null): string
+    public function renderExtbaseLink(array $controllerArguments = [], ?int $pageUid = null): string
     {
         $absolute = $this->arguments['absolute'] ?? false;
-        $pageUid = $pageUid ?? $this->getPageUid($this->arguments['pageUid'] ?? '');
+        $pageUid = $pageUid ?? $this->getPageUid();
 
         $section = $this->arguments['section'] ?? '';
 
         /** @var UriBuilder $uriBuilder */
         $uriBuilder = GeneralUtility::makeInstance(UriBuilder::class);
-        // $uriBuilder = $this->renderingContext->getUriBuilder(); // Typo3 11 and later
         $this->lastHref = $uriBuilder->reset()
+            ->setRequest($this->getRequest())
             ->setTargetPageUid($pageUid)
             ->setSection($section)
             ->setCreateAbsoluteUri($absolute)

@@ -3,7 +3,7 @@
 return [
     'web_calendarize' => [
         'parent' => 'web',
-        'access' => 'user, group',
+        'access' => 'user',
         'path' => '/module/web/calendarize',
         'iconIdentifier' => 'ext-calendarize-wizard-icon',
         'labels' => 'LLL:EXT:calendarize/Resources/Private/Language/locallang_mod.xlf',
@@ -12,6 +12,6 @@ return [
         'controllerActions' => [
             \HDNET\Calendarize\Controller\BackendController::class => ['list'],
         ],
-        'aliases' => ['web_CalendarizeCalendarize']
+        'aliases' => ['web_CalendarizeCalendarize'],
     ],
 ];
